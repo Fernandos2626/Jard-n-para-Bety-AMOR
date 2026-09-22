@@ -142,6 +142,57 @@
 
   var FLOWER_MAKERS = [sunflowerSVG, daisySVG, wildflowerSVG, buttercupSVG, petalSprigSVG];
 
+  /* =========================================================
+     "ALFOMBRA" DE FLORES: patrón repetible (miles visuales, 0 costo)
+     En vez de crear miles de elementos animados (lo cual sí haría
+     lenta la página en el teléfono), generamos UNA sola imagen SVG
+     con muchas flores pequeñas y la repetimos como fondo. El
+     navegador la repite gratis, así que da la sensación de un
+     campo interminable sin afectar el rendimiento.
+  ========================================================= */
+  function miniFlowerMarkup(color, variant) {
+    if (variant === 0) {
+      // florecita de 5 pétalos
+      var petals = '';
+      for (var i = 0; i < 5; i++) {
+        petals += '<ellipse cx="0" cy="-4.2" rx="2.1" ry="4.4" fill="' + color + '" transform="rotate(' + (i * 72) + ')"/>';
+      }
+      return petals + '<circle r="1.6" fill="#c98b1f"/>';
+    } else if (variant === 1) {
+      // punto/capullo pequeño
+      return '<circle r="2.6" fill="' + color + '"/><circle r="1.1" fill="#c98b1f"/>';
+    } else {
+      // pétalo suelto
+      return '<ellipse cx="0" cy="0" rx="2.6" ry="4.6" fill="' + color + '" opacity="0.9"/>';
+    }
+  }
+
+  function buildMeadowTileURI(px, count) {
+    var shapes = '';
+    for (var i = 0; i < count; i++) {
+      var x = rand(0, px);
+      var y = rand(0, px);
+      var scale = rand(0.6, 1.5);
+      var rot = rand(0, 360);
+      var color = pick(PALETTE);
+      var variant = Math.floor(rand(0, 3));
+      shapes += '<g transform="translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ') rotate(' + rot.toFixed(0) + ') scale(' + scale.toFixed(2) + ')">' +
+        miniFlowerMarkup(color, variant) + '</g>';
+    }
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + px + '" height="' + px + '" viewBox="0 0 ' + px + ' ' + px + '">' + shapes + '</svg>';
+    return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+  }
+
+  function applyMeadow(el, opts) {
+    if (!el) return;
+    opts = opts || {};
+    var tile = buildMeadowTileURI(opts.tilePx || 180, opts.count || 20);
+    el.style.backgroundImage = tile;
+    el.style.backgroundRepeat = 'repeat';
+    el.style.backgroundSize = (opts.tileSize || 180) + 'px';
+    if (opts.opacity !== undefined) el.style.opacity = opts.opacity;
+  }
+
   /**
    * Genera un campo de flores dentro del contenedor dado.
    * opts: { count, sizeMin, sizeMax, withStems, edgeBleed }
@@ -191,7 +242,7 @@
   function initFallingPetals() {
     var layer = document.getElementById('petal-layer');
     if (!layer) return;
-    var count = reduceMotion ? 3 : 9;
+    var count = reduceMotion ? 4 : 16;
     for (var i = 0; i < count; i++) {
       var p = document.createElement('div');
       p.className = 'falling-petal';
@@ -221,7 +272,7 @@
     btn.addEventListener('click', function () {
       gate.classList.add('hidden');
       document.body.style.overflow = 'auto';
-      growFlowerField('field-intro', { count: 12, sizeMin: 26, sizeMax: 52, vSpread: [55, 98] });
+      growFlowerField('field-intro', { count: 28, sizeMin: 22, sizeMax: 52, vSpread: [30, 98], edgeBleed: 8, stagger: 35 });
 
       if (audio) {
         var playPromise = audio.play();
@@ -278,8 +329,8 @@
     observeReveals(document.querySelectorAll('#intro .reveal, #antes-carta .reveal, #carta .reveal, #fotos > .container > .reveal, #final .reveal'));
 
     var sections = [
-      { id: 'fotos', field: 'field-fotos', opts: { count: 16, sizeMin: 18, sizeMax: 38, vSpread: [4, 98], edgeBleed: 8 } },
-      { id: 'final', field: 'field-final', opts: { count: 22, sizeMin: 24, sizeMax: 56, vSpread: [45, 100], edgeBleed: 8 } }
+      { id: 'fotos', field: 'field-fotos', opts: { count: 34, sizeMin: 16, sizeMax: 40, vSpread: [2, 100], edgeBleed: 10, stagger: 25 } },
+      { id: 'final', field: 'field-final', opts: { count: 46, sizeMin: 22, sizeMax: 58, vSpread: [35, 100], edgeBleed: 10, stagger: 20 } }
     ];
 
     sections.forEach(function (s) {
@@ -306,7 +357,16 @@
   ========================================================= */
   document.addEventListener('DOMContentLoaded', function () {
     document.body.style.overflow = 'hidden';
-    growFlowerField('field-gate', { count: 9, sizeMin: 18, sizeMax: 34, vSpread: [70, 100], edgeBleed: 6, stagger: 90 });
+
+    // Alfombra de fondo: una capa fija y sutil detrás de TODA la página,
+    // más una capa más densa dentro del jardín final.
+    applyMeadow(document.getElementById('meadow-global'), { tilePx: 170, count: 22, tileSize: 170, opacity: 0.4 });
+    applyMeadow(document.getElementById('meadow-gate'), { tilePx: 150, count: 18, tileSize: 150, opacity: 0.55 });
+    applyMeadow(document.getElementById('meadow-intro'), { tilePx: 160, count: 20, tileSize: 160, opacity: 0.5 });
+    applyMeadow(document.getElementById('meadow-fotos'), { tilePx: 150, count: 24, tileSize: 150, opacity: 0.45 });
+    applyMeadow(document.getElementById('meadow-final'), { tilePx: 140, count: 30, tileSize: 140, opacity: 0.65 });
+
+    growFlowerField('field-gate', { count: 16, sizeMin: 16, sizeMax: 34, vSpread: [55, 100], edgeBleed: 8, stagger: 55 });
     initFallingPetals();
     renderPhotoGrid();
     initReveal();
